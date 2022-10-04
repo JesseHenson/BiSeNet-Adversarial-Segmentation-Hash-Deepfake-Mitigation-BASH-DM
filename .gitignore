@@ -1,0 +1,14 @@
+*.pyc
+__pychache__/
+.vscode/
+
+*.pdt
+*.out
+*.sh
+
+venv/*
+.idea/
+experiments/results/
+*.npy
+*.json
+lfw-deepfunneled/

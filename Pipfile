@@ -1,0 +1,26 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+keras = "*"
+tensorflow-gpu = "*"
+scikit-image = "*"
+scikit-learn = "*"
+scipy = "*"
+validators = "*"
+adversarial-robustness-toolbox = "*"
+numpy-indexed = "*"
+pandas = "*"
+pillow = "*"
+stegano = "*"
+beautifulsoup4 = "*"
+hdf5storage = "*"
+tqdm = "*"
+
+[dev-packages]
+ipykernel = "*"
+
+[requires]
+python_version = "3.10"
