@@ -1,28 +1,23 @@
-"""
-Generating Steganography images using Adversarial attacks 
-"""
-
-
-
 import sys
-sys.path.append("./")
-from experiments import logger, RANDOM_SEED
-
 import os
 import keras
-os.environ["CUDA_VISIBLE_DEVICES"]="-1"    
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
 import tensorflow as tf
 from keras.utils import to_categorical
 from keras.utils import save_img, load_img, img_to_array
 from keras.datasets import cifar10   
 import numpy as np
-import random, json, time, os
+import random, time, os
 from art.estimators.classification import KerasClassifier
 from art.attacks.evasion import ProjectedGradientDescent
 from PIL import Image
 import glob
+
+sys.path.append("./")
+from experiments import logger, RANDOM_SEED
+
 tf.compat.v1.disable_eager_execution()
+os.environ["CUDA_VISIBLE_DEVICES"]="-1"    
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
 
 
 from stegano import lsb
@@ -44,37 +39,33 @@ def craft_attack(model, x,y=None, epsilon=1., minimal=True):
     adv_x = crafter.generate(x,y)
     return adv_x
 
-def get_segmented_data():
-    filelist = glob.glob(f'{segmented_dir}/*.png')
-    # for fname in filelist:
-    #     img = Image.open(fname)
-    #     img = img.resize()
-    x = np.array([np.array(Image.open(fname).resize((32,32))) for fname in filelist])
-    y = np.array([np.array(int(fname[-6:-4])) for fname in filelist])
-    encoding_base = np.max(y)
-    print(encoding_base, x.shape, y.shape)
-    return encoding_base, x, y
-    # for image in image_set:
-    # x_train is the images, y_train is int([-5,-3]
-    # x = images
-    # y = int(label[-5,-3])
-    # take first 200 images as train next 200 as test 
-    # return (x_train, y_train), (x_test, y_test)
-    # 
+# def get_segmented_data():
+#     filelist = glob.glob(f'{segmented_dir}/*.png')
+#     # for fname in filelist:
+#     #     img = Image.open(fname)
+#     #     img = img.resize()
+#     x = np.array([np.array(Image.open(fname).resize((32,32))) for fname in filelist])
+#     y = np.array([np.array(int(fname[-6:-4])) for fname in filelist])
+#     encoding_base = np.max(y)
+#     print(encoding_base, x.shape, y.shape)
+#     return encoding_base, x, y
+#     # for image in image_set:
+#     # x_train is the images, y_train is int([-5,-3]
+#     # x = images
+#     # y = int(label[-5,-3])
+#     # take first 200 images as train next 200 as test 
+#     # return (x_train, y_train), (x_test, y_test)
+#     # 
 
 def get_dataset(num_classes):
 
     # get_segmented_data()
-    encoding_base,  x_test, y_test = get_segmented_data()
-    # (x_train, y_train), (x_test, y_test) = cifar10.load_data()
+    # encoding_base,  x_test, y_test = get_segmented_data()
+    (x_train, y_train), (x_test, y_test) = cifar10.load_data()
 
-    # Convert class vectors to binary class matrices.
-    # y_train = keras.utils.to_categorical(y_train, num_classes)
     y_test = keras.utils.to_categorical(y_test, num_classes)
 
-    # x_train = x_train.astype('float32')
     x_test = x_test.astype('float32')
-    # x_train /= 255
     x_test /= 255
 
     return x_test, y_test
@@ -136,23 +127,17 @@ def _decode(dataset, model_type, epochs, extension=None):
     decoding_score = np.mean(np.array(score))
     return decoding_score
 
-# TODO: Gather Message
-# TODO: Return Model
-# TODO: Use Segmented Images 
 def _encode(msg,dataset, model_type, epochs, base=10, keep_one=False, quality=100, attack_strength=2.0, extension=None):
     if not extension:
         extension = default_extension
     encoded_msg = _encodeString(msg, base)
     test_size = len(encoded_msg)
     model, x_test, y_test = load_model(dataset=dataset, model_type=model_type, epochs=epochs)
-    num_classes= 17
+    num_classes= 10
     combined = list(zip(x_test, y_test))
     random.shuffle(combined)
     x_test[:], y_test[:] = zip(*combined)
-    #keep only correctly predicted inputs
     preds_test = np.argmax(model.predict(x_test,verbose=0), axis=1)
-    ground_truth = y_test.argmax(axis=1)
-    inds_correct_full = np.where(preds_test == y_test.argmax(axis=1))
     inds_correct = np.where(preds_test == y_test.argmax(axis=1))[0]
     x, y = x_test[inds_correct], y_test[inds_correct]
     x, y = x[:test_size], y[:test_size]

@@ -15,3 +15,5 @@ todo.md
 Pipfile.lock
 lfw-deepfunneled/
 *.tgz
+res/test_res
+results/
