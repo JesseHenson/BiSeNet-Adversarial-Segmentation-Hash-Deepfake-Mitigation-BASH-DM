@@ -1,5 +1,14 @@
 import os, tarfile
+import shutil
+import requests
 
+url = 'http://vis-www.cs.umass.edu/lfw/lfw-deepfunneled.tgz'
+response = requests.get(url, stream=True)
+
+with open('lfw-deepfunneled.tgz', 'wb') as out_file:
+  shutil.copyfileobj(response.raw, out_file)
+
+print('The file was saved successfully')
 def extract(tar_url, extract_path='.'):
     print(tar_url)
     tar = tarfile.open(tar_url, 'r')

@@ -11,4 +11,7 @@ venv/*
 experiments/results/
 *.npy
 *.json
+todo.md
+Pipfile.lock
 lfw-deepfunneled/
+*.tgz
