@@ -10,6 +10,7 @@ import random, time, os
 from art.estimators.classification import KerasClassifier
 from art.attacks.evasion import ProjectedGradientDescent
 from PIL import Image
+from stegano import lsb
 import glob
 
 sys.path.append("./")
@@ -19,16 +20,45 @@ tf.compat.v1.disable_eager_execution()
 os.environ["CUDA_VISIBLE_DEVICES"]="-1"    
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
 
-
-from stegano import lsb
-
 experiment_time = int(time.time())
 strs = "0123456789"
-# results need to have image, model, message
 segmented_dir = "./res/test_res/"
 default_path = "./results/pictures/{}"
 default_extension = "png"
 palette = 256
+
+def _encodeString(txt,base):
+    return str(int(txt, base))
+
+
+def get_dataset(num_classes):
+    # encoding_base,  x_test, y_test = get_segmented_data()
+    (x_train, y_train), (x, y) = cifar10.load_data()
+    y = keras.utils.to_categorical(y, num_classes)
+    x = x.astype('float32')
+    x /= 255
+    return x, y
+
+def load_model(dataset="cifar10",model_type="basic",epochs=1, data_augmentation=True):
+    if model_type.find("h5") >-1:
+        model_path = model_type
+    else:
+        model_name = "{}_{}_{}_{}_model.h5".format(dataset, model_type, epochs, data_augmentation)
+        save_dir = os.path.join(os.getcwd(), 'saved_models')
+        model_path = os.path.join(save_dir, model_name)
+        model = None
+    if os.path.isfile(model_path):
+        print(f"Loading existing model {model_path}")
+        try:
+            model = keras.models.load_model(model_path)
+            if isinstance(model.layers[-2], keras.engine.training.Model):
+                model = model.layers[-2]
+                model.compile(optimizer="adam",
+                loss='categorical_crossentropy',
+                metrics=['categorical_accuracy'])
+        except Exception as e:
+            print(e)
+    return model
 
 
 def craft_attack(model, x,y=None, epsilon=1., minimal=True):
@@ -38,6 +68,43 @@ def craft_attack(model, x,y=None, epsilon=1., minimal=True):
     crafter.set_params(**attack_params)
     adv_x = crafter.generate(x,y)
     return adv_x
+
+def pre_process(model, x, y, test_size):
+    combined = list(zip(x, y))
+    random.shuffle(combined)
+    x[:], y[:] = zip(*combined)
+    preds_test = np.argmax(model.predict(x,verbose=0), axis=1)
+    inds_correct = np.where(preds_test == y.argmax(axis=1))[0]
+    x, y = x[inds_correct], y[inds_correct]
+    x, y = x[:test_size], y[:test_size]
+    return x,y
+
+def _encode(encoded_msg, model, x, y, quality, attack_strength, extension):
+    test_size = len(encoded_msg)
+    num_classes= 10
+    q = int(10-quality/100)
+    
+    x, y = pre_process(model, x, y, test_size)
+    targets = np.array(to_categorical([int(i) for i in encoded_msg], num_classes), "int32")    
+    adv_x = craft_attack(model,x,y=targets, epsilon=attack_strength)
+    adv_y = np.argmax(model.predict(adv_x), axis=1)
+    
+    pictures_path = default_path.format(experiment_time)
+    os.makedirs(pictures_path, exist_ok =True)
+    os.makedirs(f"{pictures_path}/ref", exist_ok =True)
+
+    for i, adv in enumerate(adv_x):
+        predicted = adv_y[i]
+        encoded = np.argmax(targets[i])
+        truth = np.argmax(y[i])
+        adv_path = f"{pictures_path}/{i}_predicted{predicted}_encoded{encoded}_truth{truth}.{extension}"
+        real_path = f"{pictures_path}/ref/{i}.{extension}"
+        save_img(adv_path,adv, compress_level=q)
+        save_img(real_path,x[i], compress_level=q)
+
+    return model
+
+
 
 # def get_segmented_data():
 #     filelist = glob.glob(f'{segmented_dir}/*.png')
@@ -57,45 +124,37 @@ def craft_attack(model, x,y=None, epsilon=1., minimal=True):
 #     # return (x_train, y_train), (x_test, y_test)
 #     # 
 
-def get_dataset(num_classes):
+def run(dataset="cifar10",model_type="basic", epochs = 25, ex_id="SP1"):
 
-    # get_segmented_data()
-    # encoding_base,  x_test, y_test = get_segmented_data()
-    (x_train, y_train), (x_test, y_test) = cifar10.load_data()
+    attack_name = "targeted_pgd"
+    logger.info("running {} {} {}".format(dataset,model_type, attack_name))
+    random.seed(RANDOM_SEED)
+    quality=100
+    extension = "png"
+    nb_runs = 1
+    base = 10
+    msg_length = 10
+    image_cnt = 18
 
-    y_test = keras.utils.to_categorical(y_test, num_classes)
+    for i in range(nb_runs):
+        logger.info(i)
+        msg = "".join([strs[random.randint(0,len(strs)-1)] for i in range(msg_length)])
+        encoded_msg = _encodeString(msg, base)
+        x, y = get_dataset(image_cnt)
+        init_model = load_model(dataset=dataset, model_type=model_type, epochs=epochs)
+        model = _encode(encoded_msg, init_model, x, y, quality=quality, attack_strength=1.,extension = extension)
+        # score = _decode( dataset, model_type, epochs ,extension = extension)
+        # scores.append(score)
 
-    x_test = x_test.astype('float32')
-    x_test /= 255
+    # logger.info("{}:{}".format(experiment_id,np.array(scores).mean()))
+    # have one file with one adv image, segmentation model, adv model, message 
 
-    return x_test, y_test
-
-def load_model(dataset="cifar10",model_type="basic",epochs=1, data_augmentation=True):
-    if model_type.find("h5") >-1:
-        model_path = model_type
-    else:
-        model_name = "{}_{}_{}_{}_model.h5".format(dataset, model_type, epochs, data_augmentation)
-        save_dir = os.path.join(os.getcwd(), 'saved_models')
-        model_path = os.path.join(save_dir, model_name)
-        model = None
-    x_test, y_test = get_dataset(18)
-    if os.path.isfile(model_path):
-        print("Loading existing model {}".format(model_path))
-        try:
-            model = keras.models.load_model(model_path)
-            if isinstance(model.layers[-2], keras.engine.training.Model):
-                model = model.layers[-2]
-                model.compile(optimizer="adam",
-                loss='categorical_crossentropy',
-                metrics=['categorical_accuracy'])
-        except Exception as e:
-            print(e)
-    return model, x_test, y_test
-
-
-def _encodeString(txt,base):
-    return str(int(txt, base))
-
+    
+if __name__ == "__main__":
+    run(model_type="basic")
+    
+    
+    
 # TODO: Move this into it's own file 
 def _decodeString(n):
     base = len(strs)
@@ -126,75 +185,3 @@ def _decode(dataset, model_type, epochs, extension=None):
 
     decoding_score = np.mean(np.array(score))
     return decoding_score
-
-def _encode(msg,dataset, model_type, epochs, base=10, keep_one=False, quality=100, attack_strength=2.0, extension=None):
-    if not extension:
-        extension = default_extension
-    encoded_msg = _encodeString(msg, base)
-    test_size = len(encoded_msg)
-    model, x_test, y_test = load_model(dataset=dataset, model_type=model_type, epochs=epochs)
-    num_classes= 10
-    combined = list(zip(x_test, y_test))
-    random.shuffle(combined)
-    x_test[:], y_test[:] = zip(*combined)
-    preds_test = np.argmax(model.predict(x_test,verbose=0), axis=1)
-    inds_correct = np.where(preds_test == y_test.argmax(axis=1))[0]
-    x, y = x_test[inds_correct], y_test[inds_correct]
-    x, y = x[:test_size], y[:test_size]
-
-    targets = np.array(to_categorical([int(i) for i in encoded_msg], num_classes), "int32")    
-    #print(targets)
-    
-    # if keep_one:
-    #     x = np.repeat(np.array([x[0,:,:,:]]),y.shape[0], axis=0)
-    #     y = model.predict(x)
-    adv_x = craft_attack(model,x,y=targets, epsilon=attack_strength)
-    yadv = np.argmax(model.predict(adv_x), axis=1)
-    
-    pictures_path = default_path.format(experiment_time)
-    os.makedirs(pictures_path, exist_ok =True)
-    os.makedirs("{}/ref".format(pictures_path), exist_ok =True)
-
-    for i, adv in enumerate(adv_x):
-        # we need ADV_X + ADV_Y returned 
-        predicted = yadv[i]
-        encoded = np.argmax(targets[i])
-        truth = np.argmax(y[i])
-        adv_path = "{}/{}_predicted{}_encoded{}_truth{}.{}".format(pictures_path,i,predicted,encoded,truth, extension)
-        real_path = "{}/ref/{}.{}".format(pictures_path,i,extension)
-        q = int(10-quality/100)
-        save_img(adv_path,adv, compress_level=q)
-        save_img(real_path,x[i], compress_level=q)
-
-    return model
-
-def run(dataset="cifar10",model_type="basic", epochs = 25, ex_id="SP1"):
-
-    attack_name = "targeted_pgd"
-    logger.info("running {} {} {}".format(dataset,model_type, attack_name))
-    
-
-    if RANDOM_SEED>0:
-        random.seed(RANDOM_SEED)
-
-    quality=100
-    extension = "png"
-    nb_runs = 1
-
-    experiment_id = "SP1/1"
-    
-    scores = []
-    l = 10
-    for i in range(nb_runs):
-        logger.info(i)
-        msg2 = "".join([strs[random.randint(0,len(strs)-1)] for i in range(l)])
-        model = _encode(msg2, dataset, model_type, epochs, quality=quality, attack_strength=1.,extension = extension)
-        score = _decode( dataset, model_type, epochs ,extension = extension)
-        scores.append(score)
-
-    logger.info("{}:{}".format(experiment_id,np.array(scores).mean()))
-    # have one file with one adv image, segmentation model, adv model, message 
-
-    
-if __name__ == "__main__":
-    run(model_type="basic")

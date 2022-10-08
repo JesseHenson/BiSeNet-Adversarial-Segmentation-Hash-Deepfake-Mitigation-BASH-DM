@@ -5,7 +5,7 @@ name = "pypi"
 
 [packages]
 keras = "*"
-tensorflow-gpu = "*"
+tensorflow = "*"
 scikit-image = "*"
 scikit-learn = "*"
 scipy = "*"
