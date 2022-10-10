@@ -22,22 +22,30 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 experiment_time = int(time.time())
 strs = "0123456789"
-segmented_dir = "./res/test_res/"
+segmented_dir = "./res/face_segments/0001"
 default_path = "./results/pictures/{}"
 default_extension = "png"
 palette = 256
 
+
+def get_segmented_data():
+    filelist = glob.glob(f'{segmented_dir}/*.png')
+    x = np.array([np.array(Image.open(fname)) for fname in filelist])
+    y = np.array([np.array(int(fname[-6:-4])) for fname in filelist])
+    encoding_base = len(filelist)
+    print(encoding_base, x.shape, y.shape)
+    return encoding_base, x, y
+
 def _encodeString(txt,base):
     return str(int(txt, base))
 
-
 def get_dataset(num_classes):
-    # encoding_base,  x_test, y_test = get_segmented_data()
-    (x_train, y_train), (x, y) = cifar10.load_data()
-    y = keras.utils.to_categorical(y, num_classes)
+    encoding_base,  x, y = get_segmented_data()
+    # (x_train, y_train), (x, y) = cifar10.load_data()
+    y = keras.utils.to_categorical(y, 20)
     x = x.astype('float32')
     x /= 255
-    return x, y
+    return encoding_base, x, y
 
 def load_model(dataset="cifar10",model_type="basic",epochs=1, data_augmentation=True):
     if model_type.find("h5") >-1:
@@ -106,23 +114,7 @@ def _encode(encoded_msg, model, x, y, quality, attack_strength, extension):
 
 
 
-# def get_segmented_data():
-#     filelist = glob.glob(f'{segmented_dir}/*.png')
-#     # for fname in filelist:
-#     #     img = Image.open(fname)
-#     #     img = img.resize()
-#     x = np.array([np.array(Image.open(fname).resize((32,32))) for fname in filelist])
-#     y = np.array([np.array(int(fname[-6:-4])) for fname in filelist])
-#     encoding_base = np.max(y)
-#     print(encoding_base, x.shape, y.shape)
-#     return encoding_base, x, y
-#     # for image in image_set:
-#     # x_train is the images, y_train is int([-5,-3]
-#     # x = images
-#     # y = int(label[-5,-3])
-#     # take first 200 images as train next 200 as test 
-#     # return (x_train, y_train), (x_test, y_test)
-#     # 
+
 
 def run(dataset="cifar10",model_type="basic", epochs = 25, ex_id="SP1"):
 
@@ -139,8 +131,8 @@ def run(dataset="cifar10",model_type="basic", epochs = 25, ex_id="SP1"):
     for i in range(nb_runs):
         logger.info(i)
         msg = "".join([strs[random.randint(0,len(strs)-1)] for i in range(msg_length)])
-        encoded_msg = _encodeString(msg, base)
-        x, y = get_dataset(image_cnt)
+        encoding_base, x, y = get_dataset(image_cnt)
+        encoded_msg = _encodeString(msg, encoding_base)
         init_model = load_model(dataset=dataset, model_type=model_type, epochs=epochs)
         model = _encode(encoded_msg, init_model, x, y, quality=quality, attack_strength=1.,extension = extension)
         # score = _decode( dataset, model_type, epochs ,extension = extension)

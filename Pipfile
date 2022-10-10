@@ -18,6 +18,9 @@ stegano = "*"
 beautifulsoup4 = "*"
 hdf5storage = "*"
 tqdm = "*"
+torch = "*"
+torchvision = "*"
+matplotlib = "*"
 
 [dev-packages]
 ipykernel = "*"
