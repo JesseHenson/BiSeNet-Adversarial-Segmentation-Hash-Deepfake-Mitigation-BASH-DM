@@ -31,10 +31,10 @@ palette = 256
 def get_segmented_data():
     filelist = glob.glob(f'{segmented_dir}/*.png')
     x = np.array([np.array(Image.open(fname)) for fname in filelist])
-    y = np.array([np.array(int(fname[-6:-4])) for fname in filelist])
+    file_label = np.array([np.array(int(fname[-6:-4])) for fname in filelist])
     encoding_base = len(filelist)
-    print(encoding_base, x.shape, y.shape)
-    return encoding_base, x, y
+    # print(encoding_base, x.shape, y.shape)
+    return encoding_base, x, file_label
 
 def _encodeString(txt,base):
     return str(int(txt, base))
@@ -68,14 +68,11 @@ def load_model(dataset="cifar10",model_type="basic",epochs=1, data_augmentation=
             print(e)
     return model
 
-
-def craft_attack(model, x,y=None, epsilon=1., minimal=True):
-    attack_params = {"norm": 2,'minimal': minimal,"targeted":True, "eps_step":0.1, "eps":epsilon}
-    classifier = KerasClassifier(model=model)
-    crafter = ProjectedGradientDescent(classifier)
-    crafter.set_params(**attack_params)
-    adv_x = crafter.generate(x,y)
-    return adv_x
+def get_labels(model, x):
+    y = model.predict(x)
+    return y
+    
+    
 
 def pre_process(model, x, y, test_size):
     combined = list(zip(x, y))
@@ -86,6 +83,18 @@ def pre_process(model, x, y, test_size):
     x, y = x[inds_correct], y[inds_correct]
     x, y = x[:test_size], y[:test_size]
     return x,y
+
+def craft_attack(model, x,y=None, epsilon=1., minimal=True):
+    attack_params = {"norm": 2,'minimal': minimal,"targeted":True, "eps_step":0.1, "eps":epsilon}
+    classifier = KerasClassifier(model=model)
+    crafter = ProjectedGradientDescent(classifier)
+    crafter.set_params(**attack_params)
+    adv_x = crafter.generate(x,y)
+    return adv_x
+
+
+
+
 
 def _encode(encoded_msg, model, x, y, quality, attack_strength, extension):
     test_size = len(encoded_msg)
@@ -131,9 +140,10 @@ def run(dataset="cifar10",model_type="basic", epochs = 25, ex_id="SP1"):
     for i in range(nb_runs):
         logger.info(i)
         msg = "".join([strs[random.randint(0,len(strs)-1)] for i in range(msg_length)])
-        encoding_base, x, y = get_dataset(image_cnt)
+        encoding_base, x, file_label = get_dataset(image_cnt)
         encoded_msg = _encodeString(msg, encoding_base)
         init_model = load_model(dataset=dataset, model_type=model_type, epochs=epochs)
+        y = get_labels(init_model, x)
         model = _encode(encoded_msg, init_model, x, y, quality=quality, attack_strength=1.,extension = extension)
         # score = _decode( dataset, model_type, epochs ,extension = extension)
         # scores.append(score)
