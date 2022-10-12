@@ -6,6 +6,7 @@ from keras.utils import to_categorical
 from keras.utils import save_img, load_img, img_to_array
 from keras.datasets import cifar10   
 import numpy as np
+import cv2
 import random, time, os
 from art.estimators.classification import KerasClassifier
 from art.attacks.evasion import ProjectedGradientDescent
@@ -33,19 +34,16 @@ def get_segmented_data():
     x = np.array([np.array(Image.open(fname)) for fname in filelist])
     file_label = np.array([np.array(int(fname[-6:-4])) for fname in filelist])
     encoding_base = len(filelist)
-    # print(encoding_base, x.shape, y.shape)
-    return encoding_base, x, file_label
+    return encoding_base, x, file_label,
 
 def _encodeString(txt,base):
     return str(int(txt, base))
 
-def get_dataset(num_classes):
-    encoding_base,  x, y = get_segmented_data()
-    # (x_train, y_train), (x, y) = cifar10.load_data()
-    y = keras.utils.to_categorical(y, 20)
+def format_dataset(num_classes):
+    encoding_base,  x, file_label = get_segmented_data()
     x = x.astype('float32')
     x /= 255
-    return encoding_base, x, y
+    return encoding_base, x, file_label
 
 def load_model(dataset="cifar10",model_type="basic",epochs=1, data_augmentation=True):
     if model_type.find("h5") >-1:
@@ -93,9 +91,6 @@ def craft_attack(model, x,y=None, epsilon=1., minimal=True):
     return adv_x
 
 
-
-
-
 def _encode(encoded_msg, model, x, y, quality, attack_strength, extension):
     test_size = len(encoded_msg)
     num_classes= 10
@@ -104,6 +99,9 @@ def _encode(encoded_msg, model, x, y, quality, attack_strength, extension):
     x, y = pre_process(model, x, y, test_size)
     targets = np.array(to_categorical([int(i) for i in encoded_msg], num_classes), "int32")    
     adv_x = craft_attack(model,x,y=targets, epsilon=attack_strength)
+    # remask 
+    adv_x = np.where((x==0),0,adv_x)
+
     adv_y = np.argmax(model.predict(adv_x), axis=1)
     
     pictures_path = default_path.format(experiment_time)
@@ -121,57 +119,22 @@ def _encode(encoded_msg, model, x, y, quality, attack_strength, extension):
 
     return model
 
-
-
-
-
-def run(dataset="cifar10",model_type="basic", epochs = 25, ex_id="SP1"):
-
-    attack_name = "targeted_pgd"
-    logger.info("running {} {} {}".format(dataset,model_type, attack_name))
-    random.seed(RANDOM_SEED)
-    quality=100
-    extension = "png"
-    nb_runs = 1
-    base = 10
-    msg_length = 10
-    image_cnt = 18
-
-    for i in range(nb_runs):
-        logger.info(i)
-        msg = "".join([strs[random.randint(0,len(strs)-1)] for i in range(msg_length)])
-        encoding_base, x, file_label = get_dataset(image_cnt)
-        encoded_msg = _encodeString(msg, encoding_base)
-        init_model = load_model(dataset=dataset, model_type=model_type, epochs=epochs)
-        y = get_labels(init_model, x)
-        model = _encode(encoded_msg, init_model, x, y, quality=quality, attack_strength=1.,extension = extension)
-        # score = _decode( dataset, model_type, epochs ,extension = extension)
-        # scores.append(score)
-
-    # logger.info("{}:{}".format(experiment_id,np.array(scores).mean()))
-    # have one file with one adv image, segmentation model, adv model, message 
-
     
-if __name__ == "__main__":
-    run(model_type="basic")
-    
-    
-    
-# TODO: Move this into it's own file 
-def _decodeString(n):
-    base = len(strs)
-    if n < base:
-        return strs[n]
-    else:
-        return _decodeString(n//base) + strs[n%base]
+# # TODO: Move this into it's own file 
+# def _decodeString(n):
+#     base = len(strs)
+#     if n < base:
+#         return strs[n]
+#     else:
+#         return _decodeString(n//base) + strs[n%base]
 
 # TODO: Move this into it's own module 
-def _decode(dataset, model_type, epochs, extension=None):
+def _decode(model, epochs, file_label, extension=None):
     if not extension:
         extension = default_extension
         
     pictures_path = default_path.format(experiment_time)
-    model, x_test, y_test = load_model(dataset=dataset, model_type=model_type, epochs=epochs)
+    # model, x_test, y_test = load_model(dataset=dataset, model_type=model_type, epochs=epochs)
     score = []
     for file in os.listdir(pictures_path):
         if file.endswith(".{}".format(extension)):
@@ -187,3 +150,40 @@ def _decode(dataset, model_type, epochs, extension=None):
 
     decoding_score = np.mean(np.array(score))
     return decoding_score
+
+
+
+
+def run(dataset="cifar10",model_type="basic", epochs = 25, ex_id="SP1"):
+
+    attack_name = "targeted_pgd"
+    logger.info("running {} {} {}".format(dataset,model_type, attack_name))
+    random.seed(RANDOM_SEED)
+    quality=100
+    extension = "png"
+    nb_runs = 1
+    scores = []
+    msg_length = 10
+    image_cnt = 18
+
+    
+
+    for i in range(nb_runs):
+        logger.info(i)
+        msg = "".join([strs[random.randint(0,len(strs)-1)] for i in range(msg_length)])
+        encoding_base, x, file_label = format_dataset(image_cnt)
+        encoded_msg = _encodeString(msg, encoding_base)
+        init_model = load_model(dataset=dataset, model_type=model_type, epochs=epochs)
+        y = get_labels(init_model, x)
+        model = _encode(encoded_msg, init_model, x, y, quality=quality, attack_strength=1.,extension = extension)
+        score = _decode(init_model, epochs ,file_label ,extension = extension)
+        scores.append(score)
+
+    logger.info("{}".format(np.array(scores).mean()))
+    # have one file with one adv image, segmentation model, adv model, message 
+
+    
+if __name__ == "__main__":
+    run(model_type="basic")
+    
+    

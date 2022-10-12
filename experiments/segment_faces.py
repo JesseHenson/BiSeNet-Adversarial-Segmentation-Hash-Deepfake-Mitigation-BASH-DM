@@ -15,6 +15,21 @@ dspth='./lfw-deepfunneled/Adam_Sandler'
 respth='./res/face_segments'
 cp='79999_iter.pth'
 
+
+def crop_segment(masked_segment):
+    grey_img = cv2.cvtColor(masked_segment, cv2.COLOR_BGR2GRAY)	
+    ret, thresh = cv2.threshold(grey_img, 127, 255, 0)
+    M = cv2.moments(thresh)
+    if M["m00"] != 0: 
+        cX = int(M["m10"] / M["m00"])
+        cY = int(M["m01"] / M["m00"])
+        cropped_segment = masked_segment[cY-16:cY+16, cX-16:cX+16]
+    else: 
+        active_pixels = np.stack(np.where(masked_segment))
+        top_left = np.min(active_pixels, axis=1).astype(np.int32)
+        cropped_segment = masked_segment[top_left[0]:top_left[0]+32,top_left[1]:top_left[1]+32]
+    return cropped_segment
+
 def vis_parsing_maps(im, parsing_anno, stride, img_path):
     im = np.array(im)
     vis_im = im.copy().astype(np.uint8)
@@ -22,32 +37,31 @@ def vis_parsing_maps(im, parsing_anno, stride, img_path):
     segment_tensor = cv2.resize(segment_tensor, None, fx=stride, fy=stride, interpolation=cv2.INTER_NEAREST)
     num_of_segments = np.max(segment_tensor)
     final_img_collect = np.zeros(im.shape[:2],dtype=np.uint8)
-
+    parsing_masks = np.zeros(im.shape[:2], dtype=np.uint8)
     for segment in range(1, num_of_segments + 1):
         parsing_mask = np.zeros(im.shape[:2],dtype=np.uint8)
         index = np.where(segment_tensor == segment)
+        if len(index[0]) + len(index[1]) == 0:
+            continue
         parsing_mask[index[0], index[1]] = 255
+        
         masked_segment = cv2.bitwise_and(vis_im, vis_im, mask=parsing_mask)
         masked_segment = cv2.cvtColor(masked_segment, cv2.COLOR_RGB2BGR)
+        
+        cropped_segment = crop_segment(masked_segment)
+        
         pi_extension = ''
         if len(str(segment)) == 1: 
             pi_extension = f'0{segment}'
         else: 
             pi_extension = str(segment)
-        # print(masked_segment.shape)
-        # flat_img = masked_segment[:,:,0]
-        active_pixels = np.stack(np.where(masked_segment))
-        if active_pixels.shape[1] == 0:
-            print(f'image {pi_extension} is all black')
-        else:
-            top_left = np.min(active_pixels, axis=1).astype(np.int32)
-            cropped_img = masked_segment[top_left[0]:top_left[0]+32,top_left[1]:top_left[1]+32]
-            final_path = osp.join(respth,img_path[-8:-4],img_path[:-4] + '_' + pi_extension +'.png')
-            print(final_path)
-            if not os.path.exists(f'{respth}/{img_path[-8:-4]}'):
-                os.makedirs(f'{respth}/{img_path[-8:-4]}')
-            cv2.imwrite(f'{respth}/{img_path[-8:-4]}/{img_path[:-4]}_{pi_extension}.png', cropped_img)
-            # cv2.imwrite(f'{respth}/{img_path[-8:-4]}/{img_path[:-4]}_{pi_extension}.png',masked_segment)
+        final_path = osp.join(respth,img_path[-8:-4],img_path[:-4] + '_' + pi_extension +'.png')
+        if not os.path.exists(f'{respth}/{img_path[-8:-4]}'):
+            os.makedirs(f'{respth}/{img_path[-8:-4]}')
+        if not os.path.exists(f'{respth}/{img_path[-8:-4]}/ref'):
+            os.makedirs(f'{respth}/{img_path[-8:-4]}/ref')
+        cv2.imwrite(f'{respth}/{img_path[-8:-4]}/{img_path[:-4]}_{pi_extension}.png', cropped_segment)
+        cv2.imwrite(f'{respth}/{img_path[-8:-4]}/ref/{img_path[:-4]}_{pi_extension}.png',masked_segment)
     # if segment has non black pixels add to tensor 
     # return tensor of all images
 
