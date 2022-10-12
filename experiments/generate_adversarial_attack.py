@@ -74,7 +74,7 @@ def get_labels(model, x):
 
 def pre_process(model, x, y, test_size):
     combined = list(zip(x, y))
-    random.shuffle(combined)
+    # random.shuffle(combined)
     x[:], y[:] = zip(*combined)
     preds_test = np.argmax(model.predict(x,verbose=0), axis=1)
     inds_correct = np.where(preds_test == y.argmax(axis=1))[0]
@@ -87,11 +87,11 @@ def craft_attack(model, x,y=None, epsilon=1., minimal=True):
     classifier = KerasClassifier(model=model)
     crafter = ProjectedGradientDescent(classifier)
     crafter.set_params(**attack_params)
-    adv_x = crafter.generate(x,y)
+    adv_x = crafter.generate(x,y,mask=x)
     return adv_x
 
 
-def _encode(encoded_msg, model, x, y, quality, attack_strength, extension):
+def _encode(encoded_msg, model, x, y, quality, attack_strength, extension, file_label):
     test_size = len(encoded_msg)
     num_classes= 10
     q = int(10-quality/100)
@@ -100,7 +100,7 @@ def _encode(encoded_msg, model, x, y, quality, attack_strength, extension):
     targets = np.array(to_categorical([int(i) for i in encoded_msg], num_classes), "int32")    
     adv_x = craft_attack(model,x,y=targets, epsilon=attack_strength)
     # remask 
-    adv_x = np.where((x==0),0,adv_x)
+    # adv_x = np.where((x==0),0,adv_x)
 
     adv_y = np.argmax(model.predict(adv_x), axis=1)
     
@@ -112,7 +112,7 @@ def _encode(encoded_msg, model, x, y, quality, attack_strength, extension):
         predicted = adv_y[i]
         encoded = np.argmax(targets[i])
         truth = np.argmax(y[i])
-        adv_path = f"{pictures_path}/{i}_predicted{predicted}_encoded{encoded}_truth{truth}.{extension}"
+        adv_path = f"{pictures_path}/file{file_label[i]}_i{i}_predicted{predicted}_encoded{encoded}_truth{truth}.{extension}"
         real_path = f"{pictures_path}/ref/{i}.{extension}"
         save_img(adv_path,adv, compress_level=q)
         save_img(real_path,x[i], compress_level=q)
@@ -175,7 +175,7 @@ def run(dataset="cifar10",model_type="basic", epochs = 25, ex_id="SP1"):
         encoded_msg = _encodeString(msg, encoding_base)
         init_model = load_model(dataset=dataset, model_type=model_type, epochs=epochs)
         y = get_labels(init_model, x)
-        model = _encode(encoded_msg, init_model, x, y, quality=quality, attack_strength=1.,extension = extension)
+        model = _encode(encoded_msg, init_model, x, y, quality=quality, attack_strength=1.,extension = extension, file_label=file_label)
         score = _decode(init_model, epochs ,file_label ,extension = extension)
         scores.append(score)
 
