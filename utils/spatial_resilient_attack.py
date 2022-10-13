@@ -3,7 +3,7 @@ import sys, os, math
 sys.path.append("./")
 from art.attacks import ProjectedGradientDescent
 from metrics.attacks import get_attack_params, KerasClassifier
-from experiments import logger, RANDOM_SEED
+from main import logger, RANDOM_SEED
 import numpy as np
 
 from keras.utils import to_categorical

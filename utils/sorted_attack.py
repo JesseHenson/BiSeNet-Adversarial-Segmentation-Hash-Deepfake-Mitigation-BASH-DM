@@ -3,7 +3,7 @@ import sys, os, math
 sys.path.append("./")
 from art.estimators.classification import KerasClassifier
 from art.attacks.evasion import ProjectedGradientDescent
-from experiments import logger, RANDOM_SEED
+from main import logger, RANDOM_SEED
 import numpy as np
 from keras.datasets import cifar10
 import keras
