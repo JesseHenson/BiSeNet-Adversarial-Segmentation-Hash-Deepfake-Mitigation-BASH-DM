@@ -6,7 +6,6 @@ from keras.utils import to_categorical
 from keras.utils import save_img, load_img, img_to_array
 from keras.datasets import cifar10   
 import numpy as np
-import cv2
 import random, time, os
 from art.estimators.classification import KerasClassifier
 from art.attacks.evasion import ProjectedGradientDescent
@@ -23,7 +22,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 experiment_time = int(time.time())
 strs = "0123456789"
-segmented_dir = "./res/face_segments/0001"
+segmented_dir = "./results/cropped_segments/0001"
 default_path = "./results/pictures/{}"
 default_extension = "png"
 palette = 256
@@ -39,13 +38,13 @@ def get_segmented_data():
 def _encodeString(txt,base):
     return str(int(txt, base))
 
-def format_dataset(num_classes):
+def format_dataset():
     encoding_base,  x, file_label = get_segmented_data()
     x = x.astype('float32')
     x /= 255
     return encoding_base, x, file_label
 
-def load_model(dataset="cifar10",model_type="basic",epochs=1, data_augmentation=True):
+def load_model(dataset, model_type,epochs, data_augmentation):
     if model_type.find("h5") >-1:
         model_path = model_type
     else:
@@ -91,9 +90,8 @@ def craft_attack(model, x,y=None, epsilon=1., minimal=True):
     return adv_x
 
 
-def _encode(encoded_msg, model, x, y, quality, attack_strength, extension, file_label):
+def _encode(encoded_msg, model, x, y, quality, attack_strength, extension, file_label, num_classes):
     test_size = len(encoded_msg)
-    num_classes= 10
     q = int(10-quality/100)
     
     x, y = pre_process(model, x, y, test_size)
@@ -154,28 +152,28 @@ def _decode(model, epochs, file_label, extension=None):
 
 
 
-def run(dataset="cifar10",model_type="basic", epochs = 25, ex_id="SP1"):
+def run(dataset, model_type, epochs, data_augmentation):
 
     attack_name = "targeted_pgd"
-    logger.info("running {} {} {}".format(dataset,model_type, attack_name))
+    logger.info("running {} {}".format(model_type, attack_name))
     random.seed(RANDOM_SEED)
     quality=100
     extension = "png"
     nb_runs = 1
     scores = []
     msg_length = 10
-    image_cnt = 18
+    num_classes= 100
 
     
 
     for i in range(nb_runs):
         logger.info(i)
         msg = "".join([strs[random.randint(0,len(strs)-1)] for i in range(msg_length)])
-        encoding_base, x, file_label = format_dataset(image_cnt)
+        encoding_base, x, file_label = format_dataset()
         encoded_msg = _encodeString(msg, encoding_base)
-        init_model = load_model(dataset=dataset, model_type=model_type, epochs=epochs)
+        init_model = load_model(dataset=dataset, model_type=model_type, epochs=epochs, data_augmentation=data_augmentation)
         y = get_labels(init_model, x)
-        model = _encode(encoded_msg, init_model, x, y, quality=quality, attack_strength=1.,extension = extension, file_label=file_label)
+        model = _encode(encoded_msg, init_model, x, y, quality=quality, attack_strength=1.,extension = extension, file_label=file_label, num_classes=num_classes)
         score = _decode(init_model, epochs ,file_label ,extension = extension)
         scores.append(score)
 
@@ -184,6 +182,6 @@ def run(dataset="cifar10",model_type="basic", epochs = 25, ex_id="SP1"):
 
     
 if __name__ == "__main__":
-    run(model_type="basic")
+    run(dataset='cifar100', model_type="resnet", epochs=100, data_augmentation=True)
     
     
