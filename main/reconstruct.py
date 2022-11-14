@@ -6,7 +6,6 @@ import re
 import numpy as np
 from PIL import Image
 
-from pyparsing import original_text_for
 
 def run(file_crop_loc_dict, dspth, adversarial_output_path):
     original_file_name = glob.glob(dspth)[0]
@@ -20,13 +19,18 @@ def run(file_crop_loc_dict, dspth, adversarial_output_path):
         segment_number = file_prefix.group()[4:]
         crop_location_x, crop_location_y = file_crop_loc_dict[int(segment_number)]
         # parsing_mask = np.zeros(original_img.shape,dtype=np.uint8)
-        original_img[crop_location_x*16:32+(crop_location_x*16),crop_location_y*16:32+(crop_location_y*16)] = adv_img
+        # crop_location_x, crop_location_y = [9, 13]
+        center = (16+(crop_location_y*16), 16+(crop_location_x*16))
+        mask = 255 * np.ones(adv_img.shape, adv_img.dtype)
+        print(image_path)
+        original_img = cv2.seamlessClone(adv_img, original_img, mask, center, cv2.NORMAL_CLONE)
+        # original_img[crop_location_x*16:32+(crop_location_x*16),crop_location_y*16:32+(crop_location_y*16)] = adv_img
         # print(parsing_mask.shape, original_img.shape)
         # cv2.imwrite('parsing_mask.png',parsing_mask)
         # parsing_mask = parsing_mask.astype(np.uint8)
         # masked_segment = cv2.bitwise_xor(original_img, parsing_mask)
         # masked_segment = cv2.cvtColor(masked_segment, cv2.COLOR_RGB2BGR)
-        cv2.imwrite('testing_output.png',original_img)    
+    cv2.imwrite('testing_output.png',original_img)    
 
         
 

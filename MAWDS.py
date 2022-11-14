@@ -11,5 +11,5 @@ dspth = './lfw-deepfunneled/Adam_Sandler/*_0001.jpg'
 path_to_segment = get_and_untar_dataset(url)
 # add options for evaulation
 file_crop_loc_dict = segment_faces(dspth)
-# generate_adversarial_image(dataset='cifar100', model_type="resnet", epochs=100, data_augmentation=True, pictures_path=adversarial_output_path)
+generate_adversarial_image(dataset='cifar100', model_type="resnet", epochs=100, data_augmentation=True, pictures_path=adversarial_output_path)
 reconstruct(file_crop_loc_dict, dspth, adversarial_output_path)

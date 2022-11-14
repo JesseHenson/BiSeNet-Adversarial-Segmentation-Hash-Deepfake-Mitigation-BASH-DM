@@ -80,7 +80,7 @@ def pre_process(model, x, y, test_size):
     return x,y
 
 def craft_attack(model, x,y=None, epsilon=1., minimal=True):
-    attack_params = {"norm": 2,'minimal': minimal,"targeted":True, "eps_step":0.1, "eps":epsilon}
+    attack_params = {"norm": 2,'minimal': minimal,"targeted":True, "eps_step":0.9, "eps":1.}
     classifier = KerasClassifier(model=model)
     crafter = ProjectedGradientDescent(classifier)
     crafter.set_params(**attack_params)
@@ -167,8 +167,8 @@ def run(dataset, model_type, epochs, data_augmentation, pictures_path):
         encoded_msg = _encodeString(msg, encoding_base)
         init_model = load_model(dataset=dataset, model_type=model_type, epochs=epochs, data_augmentation=data_augmentation)
         y = get_labels(init_model, x)
-        model = _encode(encoded_msg, init_model, x, y, quality=quality, attack_strength=1.,extension = extension, file_label=file_label, num_classes=num_classes, pictures_path=pictures_path)
-        score = _decode(init_model, epochs ,file_label, pictures_path ,extension = extension)
+        model = _encode(encoded_msg, init_model, x, y, quality=quality, attack_strength=1.,extension = extension, file_label=file_label, num_classes=num_classes, pictures_path='./results/pictures')
+        score = _decode(init_model, epochs ,file_label, './results/pictures' ,extension = extension)
         scores.append(score)
 
     logger.info("{}".format(np.array(scores).mean()))
