@@ -16,6 +16,7 @@ from main.model import BiSeNet
 
 respth='./results/cropped_segments'
 model_path='79999_iter.pth'
+dest_path = ''
 
 def pre_process_segment_tensor(im, parsing_anno, stride):
     im = np.array(im)
@@ -61,8 +62,9 @@ def write_images(img_path, segment, masked_segment, cropped_segment):
         os.makedirs(f'{respth}/{img_path[-8:-4]}')
     if not os.path.exists(f'{respth}/{img_path[-8:-4]}/ref'):
         os.makedirs(f'{respth}/{img_path[-8:-4]}/ref')
-    cv2.imwrite(f'{respth}/{img_path[-8:-4]}/{img_path[:-4]}_{pi_extension}.png', cropped_segment)
-    cv2.imwrite(f'{respth}/{img_path[-8:-4]}/ref/{img_path[:-4]}_{pi_extension}.png',masked_segment)
+    print(f'{respth}/{img_path[-8:-4]}/{img_path[-4:]}_{pi_extension}.png')
+    cv2.imwrite(f'{respth}/{img_path[-8:-4]}/{pi_extension}.png', cropped_segment)
+    cv2.imwrite(f'{respth}/{img_path[-8:-4]}/ref/{pi_extension}.png',masked_segment)
     # if segment has non black pixels add to tensor 
     # return tensor of all images
 

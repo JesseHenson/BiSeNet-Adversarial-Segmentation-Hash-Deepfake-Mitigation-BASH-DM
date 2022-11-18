@@ -80,7 +80,7 @@ def pre_process(model, x, y, test_size):
     return x,y
 
 def craft_attack(model, x,y=None, epsilon=1., minimal=True):
-    attack_params = {"norm": 2,'minimal': minimal,"targeted":True, "eps_step":0.9, "eps":1.}
+    attack_params = {"norm": 2,'minimal': minimal,"targeted":True, "eps_step":0.1, "eps":2.}
     classifier = KerasClassifier(model=model)
     crafter = ProjectedGradientDescent(classifier)
     crafter.set_params(**attack_params)
