@@ -30,7 +30,7 @@ def run(file_crop_loc_dict, dspth, adversarial_output_path):
         # parsing_mask = parsing_mask.astype(np.uint8)
         # masked_segment = cv2.bitwise_xor(original_img, parsing_mask)
         # masked_segment = cv2.cvtColor(masked_segment, cv2.COLOR_RGB2BGR)
-    cv2.imwrite('testing_output_2eps.png',original_img)    
+    cv2.imwrite('testing_output_larger_size.png',original_img)    
 
         
 

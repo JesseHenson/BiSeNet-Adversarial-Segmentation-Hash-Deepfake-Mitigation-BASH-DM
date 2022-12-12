@@ -43,28 +43,29 @@ def format_dataset():
     x /= 255
     return encoding_base, x, file_label
 
-def load_model(dataset, model_type,epochs, data_augmentation):
-    if model_type.find("h5") >-1:
-        model_path = model_type
-    else:
-        model_name = "{}_{}_{}_{}_model.h5".format(dataset, model_type, epochs, data_augmentation)
-        save_dir = os.path.join(os.getcwd(), 'saved_models')
-        model_path = os.path.join(save_dir, model_name)
-        model = None
-    if os.path.isfile(model_path):
-        print(f"Loading existing model {model_path}")
-        try:
-            model = keras.models.load_model(model_path)
-            if isinstance(model.layers[-2], keras.engine.training.Model):
-                model = model.layers[-2]
-                model.compile(optimizer="adam",
-                loss='categorical_crossentropy',
-                metrics=['categorical_accuracy'])
-        except Exception as e:
-            print(e)
-    return model
+# def load_model(dataset, model_type,epochs, data_augmentation):
+#     if model_type.find("h5") >-1:
+#         model_path = model_type
+#     else:
+#         model_name = "{}_{}_{}_{}_model.h5".format(dataset, model_type, epochs, data_augmentation)
+#         save_dir = os.path.join(os.getcwd(), 'saved_models')
+#         model_path = os.path.join(save_dir, model_name)
+#         model = None
+#     if os.path.isfile(model_path):
+#         print(f"Loading existing model {model_path}")
+#         try:
+#             model = keras.models.load_model(model_path)
+#             if isinstance(model.layers[-2], keras.engine.training.Model):
+#                 model = model.layers[-2]
+#                 model.compile(optimizer="adam",
+#                 loss='categorical_crossentropy',
+#                 metrics=['categorical_accuracy'])
+#         except Exception as e:
+#             print(e)
+#     return model
 
 def get_labels(model, x):
+    # model = create_untrained_model((256,256))
     y = model.predict(x)
     return y
     
@@ -79,8 +80,20 @@ def pre_process(model, x, y, test_size):
     x, y = x[:test_size], y[:test_size]
     return x,y
 
+def create_untrained_model(input_shape):
+    model = tf.keras.applications.ResNet50(
+        include_top=True,
+        weights="imagenet",
+        input_tensor=None,
+        input_shape=None,
+        pooling=None,
+        classes=1000,
+)
+    return model
+
 def craft_attack(model, x,y=None, epsilon=1., minimal=True):
-    attack_params = {"norm": 2,'minimal': minimal,"targeted":True, "eps_step":0.1, "eps":2.}
+    # model = create_untrained_model((256,256))
+    attack_params = {"norm": 2,'minimal': minimal,"targeted":True, "eps_step":0.5, "eps":1.}
     classifier = KerasClassifier(model=model)
     crafter = ProjectedGradientDescent(classifier)
     crafter.set_params(**attack_params)
@@ -165,7 +178,8 @@ def run(dataset, model_type, epochs, data_augmentation, pictures_path):
         msg = "".join([strs[random.randint(0,len(strs)-1)] for i in range(msg_length)])
         encoding_base, x, file_label = format_dataset()
         encoded_msg = _encodeString(msg, encoding_base)
-        init_model = load_model(dataset=dataset, model_type=model_type, epochs=epochs, data_augmentation=data_augmentation)
+        init_model = create_untrained_model((224,224))
+        # init_model = load_model(dataset=dataset, model_type=model_type, epochs=epochs, data_augmentation=data_augmentation)
         y = get_labels(init_model, x)
         model = _encode(encoded_msg, init_model, x, y, quality=quality, attack_strength=1.,extension = extension, file_label=file_label, num_classes=num_classes, pictures_path='./results/pictures')
         score = _decode(init_model, epochs ,file_label, './results/pictures' ,extension = extension)

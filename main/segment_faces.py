@@ -41,12 +41,13 @@ def crop_segment(masked_segment):
     cropped_segment = masked_segment
     for section_x in range(int(512/16)):
         for section_y in range(int(512/16)):
-            percent_useful = sum(sum(im_bw[section_x*16:32+(section_x*16),section_y*16:32+(section_y*16)]/255))/(32*32)
+            percent_useful = sum(sum(im_bw[section_x*16:64+(section_x*16),section_y*16:64+(section_y*16)]/255))/(32*32)
             if percent_useful > max_useful:
                 
                 max_useful = percent_useful
                 max_point = [section_x, section_y]
                 cropped_segment = masked_segment[section_x*16:32+(section_x*16),section_y*16:32+(section_y*16)]
+    cropped_segment = cv2.resize(cropped_segment,(224,224))
     # print(max_useful, max)
     return cropped_segment, max_point
 
