@@ -68,6 +68,8 @@ def write_images(img_path, segment, masked_segment, cropped_segment):
     cv2.imwrite(f'{respth}/{img_path[-8:-4]}/ref/{pi_extension}.png',masked_segment)
     # if segment has non black pixels add to tensor 
     # return tensor of all images
+    
+
 
 
 def vis_parsing_maps(im, parsing_anno, stride, img_path):
