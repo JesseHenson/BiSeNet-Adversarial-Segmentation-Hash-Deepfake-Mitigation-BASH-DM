@@ -115,7 +115,8 @@ def evaluate(dspth='./lfw-deepfunneled/Adam_Sandler/*_0001.jpg'):
             image, parsing = get_parsing(net, to_tensor, image_path=image_path)
             vis_im, segment_tensor = pre_process_segment_tensor(image, parsing, stride=1)
             write_preprocessed(vis_im, dest_path, 'original')
-            vis_parsing_maps(image, parsing, 1, True, 'results/original_seg.jpeg')
+            vis_parsing_maps(image, pars
+                             ing, 1, True, 'results/original_seg.jpeg')
             adv_image = get_watermark(vis_im)
             print(type(adv_image))
             adv_image_path = f'{dest_path}/adv.png'
